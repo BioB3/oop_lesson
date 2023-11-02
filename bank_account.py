@@ -1,91 +1,62 @@
-account_database = []
-
-def create_account(num, type, name, init_balance):
-    """
-    create a new account with the inputted information as a dictionary
-    if it doesn't exist, then add it to the database.
-    """
-    index = search_account_db(num)
-    if index == -1:
-        account = {}
-        account["account_number"] = num
-        account["type"] = type
-        account["account_name"] = name
-        account["balance"] = init_balance
-        account_database.append(account)
-    else:
-        print("Account", num, "already exists")
-
-def delete_account(num):
-    """
-    delete the account with the inputted account number if it exists in the database.
-    """
-    index = search_account_db(num)
-    if index != -1:
-        print("Deleting account:", account_database[index]["account_number"])
-        del account_database[index]
-    else:
-        print(num, "invalid account number; nothing to be deleted.")
-
-def search_account_db(num):
-    """
-    check whether the account number exists in database or not.
-    """
-    for i in range(len(account_database)):
-        if account_database[i]["account_number"] == num:
-            return i
-    return -1
-
-def deposit(account_num, amount):
-    """
-    deposit the amount of money into the account that has the inputted account number
-    if it exists in the database.
-    """
-    index = search_account_db(account_num)
-    if index != -1:
-        print("Depositing", amount, "to", account_database[index]["account_number"])
-        account_database[index]["balance"] += amount
-    else:
-        print(account_num, "invalid account number; no deposit action performed.")
-
-def withdraw(account_num, amount):
-    """
-    withdraw the amount of money from the account that has the inputted account number
-    if it exists in the database and the amount of money doesn't exceed the money the account has.
-    """
-    index = search_account_db(account_num)
-    if index != -1:
-        if account_database[index]["balance"] >= amount:
-            print("Withdrawing", amount, "from", account_database[index]["account_number"])
-            account_database[index]["balance"] -= amount
-        else:
-            print("withdrawal amount", amount, "exceeds the balance of", account_database[index]["balance"], "for", account_num, "account.")
-    else:
-        print(account_num, "invalid account number; no withdrawal action performed.")
+class AccountDB:
+    def __init__(self) -> None:
+        self.account_database = []
         
-def show_account(account_num):
-    """
-    display the account with the inputted account number stored in the database.
-    """
-    index = search_account_db(account_num)
-    if index != -1:
-        print("Showing details for", account_database[index]["account_number"])
-        print(account_database[index])
-    else:
-        print(account_num, "invalid account number; nothing to be shown for.")
+    def insert(self, account):
+        index = self.search(account.account_num)
+        if index == None:
+            self.account_database.append(account)
 
-create_account("0000", "saving", "David Patterson", 1000)
-create_account("0001", "checking", "John Hennessy", 2000)
-create_account("0003", "saving", "Mark Hill", 3000)
-create_account("0004", "saving", "David Wood", 4000)
-create_account("0004", "saving", "David Wood", 4000)
-print(account_database)
-show_account('0003')
-deposit('0003', 50)
-show_account('0003')
-withdraw('0003', 25)
-show_account('0003')
-delete_account('0003')
-show_account('0003')
-deposit('0003', 50)
-withdraw('0001', 6000)
+    def search(self, account_num):
+        for i in range(len(self.account_database)):
+            if self.account_database[i].account_num == account_num:
+                return i
+        return None
+    
+    def search_public(self, account_num):
+        for i in self.account_database:
+            if i.account_num == account_num:
+                return i
+        return None
+    
+    def __str__(self):
+        s = ''
+        for i in self.account_database:
+            s += str(i) + '\n'
+        return s
+    
+    
+class Account:
+    def __init__(self, num, type, account_name, balance) -> None:
+        self.account_num = num
+        self.type = type
+        self.account_name = account_name
+        self.balance = balance
+        
+    def deposit(self, amount):
+        if not isinstance(amount, (int,float)):
+            raise TypeError('Enter NUMBERS')
+        if amount < 0:
+            raise ValueError('Are u sane?')
+        self.balance += amount
+
+    def withdraw(self, amount):
+        self.balance -= amount
+        
+    def __str__(self) -> str:
+        return f"{self.account_num}, {self.account_name}, {self.type}, balance = {self.balance} Baht"
+    
+    
+a1 = Account("0000", "saving", "David Patterson", 1000)
+a2 = Account("0001", "checking", "John Hennessy", 2000)
+a3 = Account("0003", "saving", "Mark Hill", 3000)
+a4 = Account("0004", "saving", "David Wood", 4000)
+
+db = AccountDB()
+db.insert(a1)
+db.insert(a2)
+db.insert(a3)
+db.insert(a4)
+print(db)
+db.search_public("0003").deposit(50)
+print(db)
