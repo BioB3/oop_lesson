@@ -105,7 +105,8 @@ print("Max temperatures for cities in EU that do not have coastlines")
 print(my_table4_filtered.aggregate(lambda x: max(x), "temperature"))
 
 print()
-print("Min latitude for cities in every country")
-print(my_table4.aggregate(lambda x: min(x), "latitude"))
-print("Max latitude for cities in every country")
-print(my_table4.aggregate(lambda x: max(x), "latitude"))
+for country in my_table4.table:
+    temp_table = my_table4.filter(lambda x: x["country"] == country["country"])
+    print(country["country"])
+    print(f"Min: {temp_table.aggregate(lambda x: min(x),'latitude')}")
+    print(f"Max: {temp_table.aggregate(lambda x: max(x),'latitude')}")
