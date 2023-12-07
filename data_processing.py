@@ -1,19 +1,23 @@
 import csv, os
+from combination_gen import gen_comb_list
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
-cities = []
-with open(os.path.join(__location__, 'Cities.csv')) as f:
-    rows = csv.DictReader(f)
-    for r in rows:
-        cities.append(dict(r))
+class CSV_Reader:
+    def __init__(self, name):
+        self.data = []
+        self.name = name
 
-countries = []
-with open(os.path.join(__location__, 'Countries.csv')) as f:
-    rows = csv.DictReader(f)
-    for r in rows:
-        countries.append(dict(r))
+    def read(self):
+        __location__ = os.path.realpath(
+            os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+        with open(os.path.join(__location__, self.name)) as f:
+            rows = csv.DictReader(f)
+            for row in rows:
+                self.data.append(dict(row))
+        return self.data
 
 class DB:
     def __init__(self):
@@ -51,11 +55,23 @@ class Table:
             if condition(item1):
                 filtered_table.table.append(item1)
         return filtered_table
-    
+
+    def __is_float(self, element):
+        if element is None: 
+            return False
+        try:
+            float(element)
+            return True
+        except ValueError:
+            return False
+
     def aggregate(self, function, aggregation_key):
         temps = []
         for item1 in self.table:
-            temps.append(float(item1[aggregation_key]))
+            if self.__is_float(item1[aggregation_key]):
+                temps.append(float(item1[aggregation_key]))
+            else:
+                temps.append(item1[aggregation_key])
         return function(temps)
     
     def select(self, attributes_list):
@@ -68,45 +84,75 @@ class Table:
             temps.append(dict_temp)
         return temps
 
+    def pivot_table(self, keys_to_pivot_list, keys_to_aggreagte_list, aggregate_func_list):
+
+        unique_values_list = []
+        for key_item in keys_to_pivot_list:
+            temp = []
+            for dict in self.table:
+                if dict[key_item] not in temp:
+                    temp.append(dict[key_item])
+            unique_values_list.append(temp)
+
+        # combination of unique value lists
+        import combination_gen
+        comb_list = combination_gen.gen_comb_list(unique_values_list)
+
+        pivot_table = []
+        # filter each combination
+        for item in comb_list:
+            temp_filter_table = self
+            for i in range(len(item)):
+                temp_filter_table = temp_filter_table.filter(lambda x: x[keys_to_pivot_list[i]] == item[i])
+
+            # aggregate over the filtered table
+            aggregate_val_list = []
+            for i in range(len(keys_to_aggreagte_list)):
+                aggregate_val = temp_filter_table.aggregate(aggregate_func_list[i], keys_to_aggreagte_list[i])
+                aggregate_val_list.append(aggregate_val)
+            pivot_table.append([item, aggregate_val_list])
+        return pivot_table
+
+    def update_row(self, primary_attribute,primary_attribute_value,
+                   update_attribute, update_value):
+        for films in self.table:
+            if films[primary_attribute] == primary_attribute_value:
+                films[update_attribute] = update_value
+    def insert_row(self, dict):
+        self.table.append(dict)
+
+
     def __str__(self):
         return self.table_name + ':' + str(self.table)
 
-table1 = Table('cities', cities)
-table2 = Table('countries', countries)
-my_DB = DB()
-my_DB.insert(table1)
-my_DB.insert(table2)
-my_table1 = my_DB.search('cities')
-my_table1_filtered = my_table1.filter(lambda x: x['country'] == 'Italy')
-my_table1_selected = my_table1.select(['city', 'latitude'])
-print(my_table1)
-print()
-print(my_table1_selected)
-
-temps = []
-for item in my_table1_filtered.table:
-    temps.append(float(item['temperature']))
-print(sum(temps)/len(temps))
-print("Using aggregation")
-print(my_table1_filtered.aggregate(lambda x: sum(x)/len(x), 'temperature'))
-
-print()
-my_table2 = my_DB.search('countries')
-my_table3 = my_table1.join(my_table2, 'country')
-my_table3_filtered = my_table3.filter(lambda x: x['EU'] == 'no').filter(lambda x: float(x['temperature']) < 5.0)
-print(my_table3_filtered.table)
-
-print()
-my_table4 = my_table1.join(my_table2, "country")
-my_table4_filtered = my_table4.filter(lambda x: x["EU"] == "yes").filter(lambda x: x["coastline"] == "no")
-print("Min temperature for cities in EU that do not have coastlines")
-print(my_table4_filtered.aggregate(lambda x: min(x), "temperature"))
-print("Max temperatures for cities in EU that do not have coastlines")
-print(my_table4_filtered.aggregate(lambda x: max(x), "temperature"))
-
-print()
-for country in my_table4.table:
-    temp_table = my_table4.filter(lambda x: x["country"] == country["country"])
-    print(country["country"])
-    print(f"Min: {temp_table.aggregate(lambda x: min(x),'latitude')}")
-    print(f"Max: {temp_table.aggregate(lambda x: max(x),'latitude')}")
+# main part
+table_1 = Table("movies", CSV_Reader("movies.csv").read())
+my_db = DB()
+my_db.insert(table_1)
+my_table = my_db.search("movies")
+my_table_fil = my_table.filter(lambda x: x['Genre'] == 'Comedy')
+print("average value of ‘Worldwide Gross’ for ‘Comedy’ movies")
+print(my_table_fil.aggregate(lambda x: sum(x)/len(x), 'Worldwide Gross'))
+print("minimum ‘Audience score %’ for ‘Drama’ movies")
+my_table_fil = my_table.filter(lambda x: x['Genre'] == 'Drama')
+print(my_table_fil.aggregate(lambda x: min(x), 'Audience score %'))
+print("Number of fantasy movies")
+my_table_fil = my_table.filter(lambda x: x['Genre'] == 'Fantasy')
+print(len(my_table_fil.table))
+dict = {}
+dict['Film'] = 'The Shape of Water'
+dict['Genre'] = 'Fantasy'
+dict['Lead Studio'] = 'Fox'
+dict['Audience score %'] = '72'
+dict['Profitability'] = '9.765'
+dict['Rotten Tomatoes %'] = '92'
+dict['Worldwide Gross'] = '195.3'
+dict['Year'] = '2017'
+table_1.insert_row(dict)
+print("Number of fantasy movies after insert")
+my_table_fil = my_table.filter(lambda x: x['Genre'] == 'Fantasy')
+print(len(my_table_fil.table))
+table_1.update_row('Film',
+                   'A Serious Man','Year','2022')
+my_table_fil = my_table.filter(lambda x: x['Film'] == 'A Serious Man')
+print(my_table_fil)
